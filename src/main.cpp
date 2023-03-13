@@ -30,6 +30,7 @@ bool sendLogMessage(String msg, int lvl);
 bool sendTempData(float temp, int dev_idx);
 void receiveDomoticzData(bool serialPrint = false);
 bool sendDomoticzData(String data);
+String analyzeIncomingRequestHeader(String & request);
 
 volatile bool shouldSendTemp = false;
 
@@ -119,42 +120,35 @@ void loop()
   }
 
   EthernetClient server_client = server.available();
-  if (server_client) {
-    Serial.println("new client");
-
-    // an http request ends with a blank line
-    boolean currentLineIsBlank = true;
-
-    
+  if (server_client) 
+  {
     if (server_client.available()) 
     {
       String request = server_client.readStringUntil('\0');
-      // extract the request type (e.g. "GET") and address (e.g. "http://192.168.0.24/on")
-      int spaceIndex = request.indexOf(' ');
-      String requestType = request.substring(0, spaceIndex);
-      int httpIndex = request.indexOf(" HTTP/");
-      String address = request.substring(spaceIndex+1, httpIndex);
-
-      int index = address.indexOf('/') + 1; // find index of first "/"
-  
-      if (index != -1)
-      { // if "/" is found
-        String output = address.substring(index + 1); // extract substring after "/"
-        Serial.println(output); // print output to serial monitor
-        Serial.print("Device is: ");
-        Serial.println(output);
-      }
-
-
+      String device = analyzeIncomingRequestHeader(request);
+      Serial.print("Device is: ");
+      Serial.println(device);
       send_standard_http_response(server_client);
-
     }
-    // give the web browser time to receive the data
-    delay(1);
-    // close the connection:
-    server_client.stop();
-    // Serial.println("client disconnected"); 
+    delay(1); // give the web browser time to receive the data
+    server_client.stop(); // close the connection:
   }
+}
+
+String analyzeIncomingRequestHeader(String & request)
+{
+  int spaceIndex = request.indexOf(' ');
+  int httpIndex = request.indexOf(" HTTP/");
+  String address = request.substring(spaceIndex+1, httpIndex);
+  int index = address.lastIndexOf('/') + 1; // find index of first "/"
+
+  if (index != -1)
+  { 
+    // if "/" is found
+    String output = address.substring(index); // extract substring after "/"
+    return output;
+  }
+  return "";
 }
 
 
