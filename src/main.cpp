@@ -43,15 +43,17 @@ void IRAM_ATTR onTimer()
 void setup()
 {
   Ethernet.init(5);
+
   Serial.begin(9600);
+  Ethernet.begin(mac);
+
+  sensor1.begin();
+  sensor2.begin();
+  server.begin();
+  
   Serial.println(__FILE__);
   Serial.print("DS18B20 Library version: ");
   Serial.println(DS18B20_LIB_VERSION);
-  sensor1.begin();
-  sensor2.begin();
-
-  Ethernet.begin(mac);
-  server.begin();
 
   if (Ethernet.hardwareStatus() == EthernetNoHardware)
   {
@@ -67,16 +69,18 @@ void setup()
   }
   Serial.print("This device ip: ");
   Serial.println(Ethernet.localIP());
-  //String message = "Device MASTER_ESP booted with IP address:";
-  String message = "Device ESP_MASTER booted.";
-  sendLogMessage(message, 2);
-  delay(100);
-  receiveDomoticzData(true);
 
+
+  // initialize timer and attach interrupt to it 
   timer = timerBegin(0, 80, true); // timer 0, prescaler 80, count up
   timerAttachInterrupt(timer, &onTimer, true);
   timerAlarmWrite(timer, 5000000, true);
   timerAlarmEnable(timer);
+
+  String message = "Device ESP_MASTER booted.";
+  sendLogMessage(message, 2);
+  delay(100);
+  receiveDomoticzData(true);
 }
 
 void send_standard_http_response(EthernetClient & client)
@@ -84,7 +88,6 @@ void send_standard_http_response(EthernetClient & client)
   client.println("HTTP/1.1 200 OK");
   client.println("Content-Type: text/html");
   client.println("Connection: close");  // the connection will be closed after completion of the response
-  client.println("Refresh: 5");  // refresh the page automatically every 5 sec
   client.println();
   client.println("<!DOCTYPE HTML>");
   client.println("<html>ok</html>");
@@ -140,13 +143,12 @@ String analyzeIncomingRequestHeader(String & request)
   int spaceIndex = request.indexOf(' ');
   int httpIndex = request.indexOf(" HTTP/");
   String address = request.substring(spaceIndex+1, httpIndex);
-  int index = address.lastIndexOf('/') + 1; // find index of first "/"
+  int index = address.lastIndexOf('/') + 1;
 
   if (index != -1)
   { 
     // if "/" is found
-    String output = address.substring(index); // extract substring after "/"
-    return output;
+    return address.substring(index); // return substring after "/"
   }
   return "";
 }
