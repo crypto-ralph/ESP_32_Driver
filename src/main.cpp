@@ -4,15 +4,21 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include <HTTPClient.h>
+#include "DomoticzTempSensor.h"
+#include "DomoticzOutput.h"
 
-#define ONE_WIRE_BUS1 25
-#define ONE_WIRE_BUS2 26
 
-OneWire oneWire1(ONE_WIRE_BUS1);
-OneWire oneWire2(ONE_WIRE_BUS2);
+// Temperature sensors config
+DomoticzTempSensor temperatureSensors[] = {
+  DomoticzTempSensor("1", 25),
+  DomoticzTempSensor("2", 26),
+};
 
-DS18B20 sensor1(&oneWire1);
-DS18B20 sensor2(&oneWire2);
+// Outputs config
+DomoticzOutput outputRelays[] = {
+  DomoticzOutput(22, "relay1on", "relay1off"),
+};
+
 
 EthernetClient client;
 EthernetServer server = EthernetServer(80);
@@ -27,7 +33,7 @@ char domoticz_server[] = "192.168.0.164";
 
 
 bool sendLogMessage(String msg, int lvl);
-bool sendTempData(float temp, int dev_idx);
+bool sendTempData(float temp, String dev_idx);
 void receiveDomoticzData(bool serialPrint = false);
 bool sendDomoticzData(String data);
 String analyzeIncomingRequestHeader(String & request);
@@ -42,13 +48,15 @@ void IRAM_ATTR onTimer()
 
 void setup()
 {
+  for (auto& sensor : temperatureSensors) 
+  {
+    sensor.begin();
+  }
+
   Ethernet.init(5);
 
   Serial.begin(9600);
   Ethernet.begin(mac);
-
-  sensor1.begin();
-  sensor2.begin();
   server.begin();
   
   Serial.println(__FILE__);
@@ -97,27 +105,22 @@ void loop()
 {
   if(shouldSendTemp)
   {
-    float temp1 = 0.0;
-    float temp2 = 0.0;
+
     bool result = true;
 
-    // print the temperature when available and request a new reading
-    if (sensor1.isConversionComplete())
+    for (auto& sensor : temperatureSensors) 
     {
-      temp1 = sensor1.getTempC();
-      sensor1.requestTemperatures();
-    }
-    if (sensor2.isConversionComplete())
-    {
-      temp2 = sensor2.getTempC();
-      sensor2.requestTemperatures();
-    }
+      float temperature = sensor.getTemperature();
+      Serial.print("Temperature Sensor ");
+      Serial.print(sensor.idx);
+      Serial.print(": ");
+      Serial.print(temperature);
+      Serial.println("C");
 
-    sendTempData(temp1, 1);
-    sendTempData(temp2, 2);
-
+      sendTempData(temperature, sensor.idx);
+      delay(10);
+    }
     Serial.println("temp sent to domoticz");
-    delay(10);
     // receiveDomoticzData(true);
     shouldSendTemp = false;
   }
@@ -128,10 +131,18 @@ void loop()
     if (server_client.available()) 
     {
       String request = server_client.readStringUntil('\0');
-      String device = analyzeIncomingRequestHeader(request);
-      Serial.print("Device is: ");
-      Serial.println(device);
+      String action = analyzeIncomingRequestHeader(request);
+
       send_standard_http_response(server_client);
+      Serial.println(action);
+      for (auto& output : outputRelays) 
+      {
+        if (output.processAction(action))
+        {
+          Serial.println("Action: " + action + " processed.");
+          break;
+        }
+      }
     }
     delay(1); // give the web browser time to receive the data
     server_client.stop(); // close the connection:
@@ -161,9 +172,9 @@ bool sendLogMessage(String msg, int lvl)
   return sendDomoticzData(data);
 }
 
-bool sendTempData(float temp, int dev_idx)
+bool sendTempData(float temp, String dev_idx)
 {
-  String data = "type=command&param=udevice&idx=" + String(dev_idx) + "&nvalue=0&svalue=" + String(temp);
+  String data = "type=command&param=udevice&idx=" + dev_idx + "&nvalue=0&svalue=" + String(temp);
   return sendDomoticzData(data);
 }
 
