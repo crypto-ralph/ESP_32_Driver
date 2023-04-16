@@ -6,6 +6,7 @@
 #include <HTTPClient.h>
 #include "DomoticzDevicesLists.h"
 #include "DomoticzUtils.h"
+#include "DomoticzAnalogOutput.h"
 #include "httpUtils.h"
 
 const int TIMER_PRESCALER = 80;
@@ -25,8 +26,6 @@ byte mac[] = {
     0x56, 0x99, 0x52, 0x31, 0xD6, 0x53};
 
 // IPAddress ip(192, 168, 0, 24);
-
-
 
 volatile bool shouldSendTemp = false;
 static size_t currentSensorIndex = 0;
