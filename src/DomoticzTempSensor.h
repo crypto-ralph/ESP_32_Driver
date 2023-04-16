@@ -1,6 +1,9 @@
+#ifndef DomoticzTempSensor_h
+#define DomoticzTempSensor_h
+
 #include <OneWire.h>
 #include <DS18B20.h>
-
+#include <Arduino.h>
 
 class DomoticzTempSensor {
   private:
@@ -36,3 +39,5 @@ class DomoticzTempSensor {
       return temp;
     }
 };
+
+#endif // DomoticzTempSensor_h

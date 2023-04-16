@@ -1,3 +1,6 @@
+#ifndef DomoticzOutput_h
+#define DomoticzOutput_h
+
 #include <Arduino.h>
 
 class DomoticzOutput {
@@ -49,3 +52,5 @@ class DomoticzOutput {
         return false;
     }
 };
+
+#endif // DomoticzOutput_h
