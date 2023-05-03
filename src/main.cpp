@@ -4,6 +4,8 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include <HTTPClient.h>
+#include <map>
+#include <functional>
 #include "DomoticzDevicesLists.h"
 #include "DomoticzUtils.h"
 #include "DomoticzAnalogOutput.h"
@@ -16,6 +18,34 @@ const int SERIAL_BAUD_RATE = 9600;
 const int ETHERNET_CS_PIN = 5;
 const int ETHERNET_PORT = 80;
 const char domoticz_server[] = "192.168.0.164";
+
+String process_relay_action(const char *domoticzIp, const String &actionRequest)
+{
+  int noIndex = actionRequest.indexOf("no=");
+  int actionIndex = actionRequest.indexOf("action=");
+
+  if (noIndex != -1 && actionIndex != -1)
+  {
+    int relayNo = actionRequest.substring(noIndex + 3, actionRequest.indexOf('&')).toInt();
+    String action = actionRequest.substring(actionIndex + 7);
+
+    for (auto &output : outputRelays)
+    {
+      if (output.getRelayNumber() == relayNo && output.processAction(action))
+      {
+        Serial.println("Action: " + actionRequest + " processed.");
+        break;
+      }
+    }
+  }
+  return "OK";
+}
+std::map<String, std::function<String(const char *, const String &)>> endpointMap = {
+    {"", [](const char *domoticzIp, const String &action)
+     { return create_welcome_page(domoticzIp); }},
+    {"relay", process_relay_action},
+    // Add other endpoints and their corresponding functions here
+};
 
 EthernetServer server = EthernetServer(ETHERNET_PORT);
 Domoticz domoticz = Domoticz(domoticz_server);
@@ -116,26 +146,24 @@ void loop()
   {
     if (server_client.available())
     {
-      String request = server_client.readStringUntil('\0');
-      String action = analyzeIncomingRequestHeader(request);
-      if (action == "")
+      String requestHeader = server_client.readStringUntil('\0');
+      String action, request;
+      analyzeIncomingRequestHeader(requestHeader, action, request);
+
+      // Find the corresponding function for the given action in the map
+      auto entry = endpointMap.find(action);
+
+      // If the function is found, call it and send the response
+      if (entry != endpointMap.end())
       {
-        send_welcome_page_response(server_client, domoticz_server);
-      }
-      else
-      {
-        send_standard_http_response(server_client);
-        for (auto &output : outputRelays)
-        {
-          if (output.processAction(action))
-          {
-            Serial.println("Action: " + action + " processed.");
-            break;
-          }
-        }
+        String responseContent = entry->second(domoticz_server, request);
+        Serial.println(responseContent);
+        String httpResponse = send_http_response(responseContent);
+        Serial.println(httpResponse);
+        server_client.print(httpResponse);
       }
     }
-    yield();              // Give the web browser time to receive the data
-    server_client.stop(); // close the connection:
   }
+  yield();              // Give the web browser time to receive the data
+  server_client.stop(); // close the connection:
 }

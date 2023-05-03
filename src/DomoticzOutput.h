@@ -7,13 +7,15 @@ class DomoticzOutput {
   private:
     int _pin;
     bool _state;
+    int relayNumber;
 
   public:
     // Store the index as a string
     String enpointOn;
     String enpointOff;
+    String relayName;
 
-    DomoticzOutput(int pin, String _enpointOn, String _enpointOff) : enpointOn(_enpointOn), enpointOff(_enpointOff) 
+    DomoticzOutput(int pin, int _relayNumber, String _relayName) : relayNumber(_relayNumber), relayName(_relayName)
     {
       _pin = pin;
       _state = LOW;
@@ -37,19 +39,24 @@ class DomoticzOutput {
       return _state;
     }
 
-    bool processAction(String action)
+    int getRelayNumber()
     {
-        if (action == this->enpointOn)
-        {
-            this->setHigh();
-            return true;
-        } 
-        else if (action == this->enpointOff)
-        {
-            this->setLow();
-            return true;
-        }
-        return false;
+      return relayNumber;
+    }
+
+    bool processAction(const String &action)
+    {
+      if (action == "on")
+      {
+        this->setHigh();
+        return true;
+      }
+      else if (action == "off")
+      {
+        this->setLow();
+        return true;
+      }
+      return false;
     }
 };
 

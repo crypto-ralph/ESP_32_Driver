@@ -17,7 +17,7 @@ DomoticzTempSensor temperatureSensors[] = {
 
 // Outputs config
 DomoticzOutput outputRelays[] = {
-    DomoticzOutput(22, "relay1on", "relay1off"),
+    DomoticzOutput(22, 1, "TestRelay"),
 };
 
 String getSensorListHtml()
